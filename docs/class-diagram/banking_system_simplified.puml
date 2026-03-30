@@ -1,0 +1,217 @@
+@startuml Banking System - Simplified UML Class Diagram
+
+' ============================================================
+' STYLING
+' ============================================================
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam classFontStyle bold
+
+' ============================================================
+' CORE DOMAIN
+' ============================================================
+package "Core Domain" #E3F2FD {
+
+  class Bank {
+    -_bank_name: str
+    -_branch_code: str
+    -_customers: Dict[str, Customer]
+    -_accounts: Dict[str, Account]
+    -_loans: Dict[str, Loan]
+    -_cards: Dict[str, Card]
+    -_id_generator: IdGenerator
+    +add_customer(c: Customer): None
+    +remove_customer(customer_id: str): None
+    +find_customer(customer_id: str): Optional[Customer]
+    +create_account(customer_id: str, account_type: AccountType, initial_deposit: Decimal): Account
+    +close_account(account_number: str): None
+    +save_state(): None
+  }
+
+  class Customer {
+    -_customer_id: str
+    -_first_name: str
+    -_last_name: str
+    -_email: str
+    -_phone: str
+    -_account_numbers: List[str]
+    +add_account(account_number: str): None
+    +remove_account(account_number: str): None
+    +update_details(**kwargs): None
+  }
+
+  abstract class Account <<abstract>> {
+    -_account_number: str
+    -_customer_id: str
+    -_balance: Decimal
+    -_transaction_ids: List[str]
+    -_is_active: bool
+    #_minimum_balance: Decimal
+    +{abstract} deposit(amount: Decimal, description: str): Transaction
+    +{abstract} withdraw(amount: Decimal, description: str): Transaction
+    +{abstract} transfer(target_account_number: str, amount: Decimal): Tuple[Transaction, Transaction]
+    +get_balance(): Decimal
+  }
+
+  class SavingsAccount {
+    -_interest_rate: Decimal
+    -_minimum_balance: Decimal
+    +withdraw(amount: Decimal, description: str): Transaction
+    +deposit(amount: Decimal, description: str): Transaction
+    +apply_interest(): Transaction
+  }
+
+  class CurrentAccount {
+    -_overdraft_limit: Decimal
+    +withdraw(amount: Decimal, description: str): Transaction
+    +deposit(amount: Decimal, description: str): Transaction
+  }
+
+  class Transaction {
+    -_transaction_id: str
+    -_timestamp: datetime
+    -_amount: Decimal
+    -_transaction_type: TransactionType
+    -_source_account: Optional[str]
+    -_target_account: Optional[str]
+    -_description: str
+    -_status: TransactionStatus
+    +generate_receipt(): str
+    +serialize(): dict
+  }
+
+  class Loan {
+    -_loan_id: str
+    -_customer_id: str
+    -_principal: Decimal
+    -_interest_rate: Decimal
+    -_duration_months: int
+    -_emi: Decimal
+    -_status: LoanStatus
+    +calculate_emi(): Decimal
+    +make_payment(amount: Decimal): Transaction
+    +approve(): None
+    +reject(reason: str): None
+  }
+
+  abstract class Card <<abstract>> {
+    -_card_number: str
+    -_expiry: date
+    -_pin_hash: str
+    -_is_blocked: bool
+    -_issued_to_customer_id: str
+    +validate_pin(pin: str): bool
+    +block(reason: str): None
+  }
+
+  class DebitCard {
+    -_linked_account_number: str
+    +charge(amount: Decimal, pin: str): Transaction
+  }
+
+  class CreditCard {
+    -_credit_limit: Decimal
+    -_outstanding_balance: Decimal
+    +charge(amount: Decimal, pin: str): Transaction
+    +make_payment(amount: Decimal, from_account_number: str): Transaction
+  }
+
+  ' --- Inheritance ---
+  Account <|-- SavingsAccount
+  Account <|-- CurrentAccount
+  Card <|-- DebitCard
+  Card <|-- CreditCard
+}
+
+' ============================================================
+' AUTH
+' ============================================================
+package "Auth" #F3E5F5 {
+
+  class User {
+    -_username: str
+    -_password_hash: str
+    -_role: Role
+    -_linked_customer_id: Optional[str]
+    +verify_password(password: str): bool
+    +set_password(password: str): None
+  }
+
+  class AuthService {
+    -_users: Dict[str, User]
+    +register(username: str, password: str, role: Role, linked_customer_id: Optional[str]): User
+    +login(username: str, password: str): str
+    +authorize(token: str, required_role: Role): None
+  }
+}
+
+' ============================================================
+' SERVICES
+' ============================================================
+package "Services" #E8F5E9 {
+
+  class AccountManager {
+    -_bank: Bank
+    -_transaction_manager: TransactionManager
+    +create_account(customer_id: str, account_type: AccountType, initial_deposit: Decimal): Account
+    +deposit(account_number: str, amount: Decimal): Transaction
+    +withdraw(account_number: str, amount: Decimal): Transaction
+    +transfer(src: str, tgt: str, amount: Decimal): Tuple[Transaction, Transaction]
+    +get_balance(account_number: str): Decimal
+  }
+
+  class TransactionManager {
+    -_transactions: Dict[str, Transaction]
+    +record_transaction(tx: Transaction): None
+    +get_transactions_for_account(account_number: str): List[Transaction]
+  }
+}
+
+' ============================================================
+' UTILITIES
+' ============================================================
+package "Utilities" #FFF9C4 {
+
+  class IdGenerator {
+    +generate_customer_id(): str
+    +generate_account_number(): str
+    +generate_transaction_id(): str
+    +generate_card_number(): str
+  }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' Bank aggregations
+Bank o-- "0..*" Customer : aggregates >
+Bank o-- "0..*" Account : aggregates >
+Bank o-- "0..*" Loan : aggregates >
+Bank o-- "0..*" Card : aggregates >
+
+' Customer associations
+Customer "1" -- "0..*" Account : owns >
+Customer "1" -- "0..*" Loan : has >
+
+' Account → Transaction
+Account "1" o-- "0..*" Transaction : records >
+
+' Card links
+DebitCard "1" -- "1" Account : linked to >
+CreditCard "1" -- "1" Customer : issued to >
+
+' User ↔ Customer
+User "0..1" -- "1" Customer : linked to >
+
+' Service dependencies
+AccountManager ..> Bank : uses
+AccountManager ..> TransactionManager : uses
+TransactionManager ..> Transaction : manages
+AuthService ..> User : manages
+Bank ..> IdGenerator : uses
+
+@enduml
