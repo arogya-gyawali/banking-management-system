@@ -37,12 +37,11 @@ banking-management-system/
 
 ### Use Case Diagram
 
-![Use Case Diagram](docs/use-cases/use-case-diagram.png)
+![Use Case Diagram](docs/use-cases/Use_Case_Diagram.drawio.png)
 
 ### Class Diagram
 
-![Class Diagram](docs/class-diagram/class-diagram.png)
-
+![Class Diagram](docs/class-diagram/UML_Class_Diagram.svg)
 ---
 
 ## Tech Stack
