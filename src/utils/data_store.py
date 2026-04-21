@@ -40,6 +40,13 @@ class DataStore:
     """
 
     def __init__(self, filepath: str = DEFAULT_PATH) -> None:
+        """
+        Create a DataStore pointing at the given file path.
+
+        Args:
+            filepath: Path to the JSON file used for persistence.
+                      Defaults to ``data/bank_state.json``.
+        """
         self._filepath = filepath
 
     # ================================================================== #
@@ -52,7 +59,19 @@ class DataStore:
         auth: AuthService,
         tx_manager: TransactionManager,
     ) -> None:
-        """Serialize and write the full state to disk."""
+        """
+        Serialize the entire bank state and write it to the JSON file.
+
+        Converts every entity (customers, accounts, transactions, loans,
+        cards, users, and ID counters) into plain dicts and dumps them
+        as formatted JSON.  The output directory is created automatically
+        if it does not already exist.
+
+        Args:
+            bank: The Bank aggregate containing all domain entities.
+            auth: The AuthService holding registered users and sessions.
+            tx_manager: The TransactionManager holding all transactions.
+        """
         os.makedirs(os.path.dirname(self._filepath), exist_ok=True)
 
         state: Dict[str, Any] = {
@@ -109,6 +128,9 @@ class DataStore:
         with open(self._filepath, "r") as f:
             state = json.load(f)
 
+        if not state or "bank" not in state:
+            return self._create_fresh_state()
+
         # --- Bank ---
         bank_data = state["bank"]
         bank = Bank(bank_data["bank_name"], bank_data["branch_code"])
@@ -118,10 +140,12 @@ class DataStore:
 
         # --- Customers ---
         for cid, cdata in state.get("customers", {}).items():
-            customer = Customer(
-                cid, cdata["first_name"], cdata["last_name"],
-                cdata["email"], cdata["phone"],
-            )
+            customer = Customer.__new__(Customer)
+            customer._customer_id = cid
+            customer._first_name = cdata["first_name"]
+            customer._last_name = cdata["last_name"]
+            customer._email = cdata["email"]
+            customer._phone = cdata["phone"]
             customer._account_numbers = cdata.get("account_numbers", [])
             bank._customers[cid] = customer
 
@@ -213,7 +237,17 @@ class DataStore:
     # ================================================================== #
 
     def _create_fresh_state(self) -> tuple:
-        """Create a new bank with a default admin account."""
+        """
+        Bootstrap a brand-new bank state when no save file exists.
+
+        Creates a Bank, AuthService, and TransactionManager with default
+        values and registers a built-in ``admin`` / ``admin123`` account
+        so the app is immediately usable on first launch.  The fresh state
+        is saved to disk before being returned.
+
+        Returns:
+            (bank, auth_service, transaction_manager) tuple with default state.
+        """
         bank = Bank("Python National Bank", "BR-001")
         auth = AuthService()
         tx_manager = TransactionManager()
@@ -229,6 +263,7 @@ class DataStore:
     # ================================================================== #
 
     def _serialize_customer(self, c: Customer) -> dict:
+        """Return a JSON-safe dict representation of a Customer."""
         return {
             "first_name": c.first_name,
             "last_name": c.last_name,
@@ -238,6 +273,7 @@ class DataStore:
         }
 
     def _serialize_account(self, a) -> dict:
+        """Return a JSON-safe dict for a SavingsAccount or CurrentAccount, including type-specific fields."""
         base = {
             "customer_id": a.customer_id,
             "balance": str(a.balance),
@@ -254,9 +290,11 @@ class DataStore:
         return base
 
     def _serialize_transaction(self, t: Transaction) -> dict:
+        """Return a JSON-safe dict for a Transaction by delegating to its own serialize() method."""
         return t.serialize()
 
     def _serialize_loan(self, loan: Loan) -> dict:
+        """Return a JSON-safe dict representation of a Loan, including all lifecycle fields."""
         return {
             "customer_id": loan.customer_id,
             "principal": str(loan.principal),
@@ -269,6 +307,7 @@ class DataStore:
         }
 
     def _serialize_card(self, card) -> dict:
+        """Return a JSON-safe dict for a DebitCard or CreditCard, including type-specific fields."""
         base = {
             "customer_id": card.issued_to_customer_id,
             "pin_hash": card._pin_hash,
@@ -285,6 +324,7 @@ class DataStore:
         return base
 
     def _serialize_user(self, u: User) -> dict:
+        """Return a JSON-safe dict for a User, storing the hashed password (never plaintext)."""
         return {
             "password_hash": u._password_hash,
             "role": u.role.value,
