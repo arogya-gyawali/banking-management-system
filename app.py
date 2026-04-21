@@ -33,6 +33,13 @@ st.set_page_config(
 #  PREMIUM CSS
 # ====================================================================== #
 def inject_css():
+    """
+    Inject the custom dark-navy and gold CSS theme into the Streamlit page.
+
+    Loads Google Fonts (Playfair Display, DM Sans, JetBrains Mono) and
+    applies CSS variables, component overrides, and animation keyframes
+    that give the app its premium banking aesthetic.
+    """
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -209,6 +216,16 @@ def inject_css():
 #  STATE
 # ====================================================================== #
 def init_state():
+    """
+    Bootstrap Streamlit session state on the very first page load.
+
+    Loads the bank, AuthService, and TransactionManager from disk via
+    DataStore, constructs an AccountManager, and stores all services in
+    ``st.session_state`` so every page function can access them without
+    re-loading.  Also initialises login-related flags to their logged-out
+    defaults.  Safe to call on every rerun — the ``initialized`` guard
+    prevents duplicate work.
+    """
     if "initialized" not in st.session_state:
         store = DataStore()
         bank, auth, tx_manager = store.load()
@@ -225,6 +242,14 @@ def init_state():
         st.session_state.initialized = True
 
 def save():
+    """
+    Persist the current bank state to disk via the DataStore.
+
+    Convenience wrapper that reads the bank, auth, and transaction manager
+    from ``st.session_state`` and delegates to ``DataStore.save()``.  Call
+    this after any mutation (deposit, new customer, loan approval, etc.) so
+    changes survive a page refresh.
+    """
     st.session_state.store.save(st.session_state.bank, st.session_state.auth, st.session_state.tx_manager)
 
 
@@ -232,6 +257,17 @@ def save():
 #  HELPERS
 # ====================================================================== #
 def _acct_options(bank, customer):
+    """
+    Build a display-label → account-number mapping for a customer's active accounts.
+
+    Args:
+        bank: The Bank instance used to look up account objects.
+        customer: The Customer whose accounts should be listed.
+
+    Returns:
+        Dict mapping human-readable labels (e.g. ``"Savings  •  ACCT-0001  •  $500.00"``)
+        to raw account number strings.  Only active accounts are included.
+    """
     opts = {}
     for acc_num in customer.account_numbers:
         a = bank.find_account(acc_num)
@@ -241,6 +277,17 @@ def _acct_options(bank, customer):
     return opts
 
 def _parse_amount(s):
+    """
+    Parse and validate a user-supplied amount string.
+
+    Args:
+        s: Raw string from a Streamlit text input (e.g. ``"250.00"``).
+
+    Returns:
+        A positive ``Decimal`` if the input is valid, or ``None`` if it
+        is empty, non-numeric, or not greater than zero.  Displays an
+        ``st.error`` message before returning ``None``.
+    """
     if not s:
         st.error("Please enter an amount.")
         return None
@@ -255,24 +302,46 @@ def _parse_amount(s):
         return None
 
 def _section(title, sub=""):
+    """
+    Render a styled page-section heading with an optional subtitle.
+
+    Args:
+        title: Main heading text.
+        sub: Optional secondary line displayed below the heading.
+    """
     st.markdown(f'<div class="section-title animate-in">{title}</div>', unsafe_allow_html=True)
     if sub:
         st.markdown(f'<div class="section-sub animate-in delay-1">{sub}</div>', unsafe_allow_html=True)
 
 def _success(msg):
+    """Render a green success toast banner with the given HTML message."""
     st.markdown(f'<div class="success-toast animate-in">{msg}</div>', unsafe_allow_html=True)
 
 def _info(msg):
+    """Render a blue informational toast banner with the given HTML message."""
     st.markdown(f'<div class="info-toast animate-in">{msg}</div>', unsafe_allow_html=True)
 
 def _warn(msg):
+    """Render a gold warning toast banner with the given HTML message."""
     st.markdown(f'<div class="warning-toast animate-in">{msg}</div>', unsafe_allow_html=True)
+
+def _error(msg):
+    """Render a Streamlit error, escaping $ signs so they are not interpreted as LaTeX."""
+    st.error(str(msg).replace("$", "\\$"))
 
 
 # ====================================================================== #
 #  LOGIN
 # ====================================================================== #
 def login_page():
+    """
+    Render the full-page login form shown to unauthenticated visitors.
+
+    Displays the bank branding, a username/password form, and a hint
+    showing the default admin credentials.  On successful authentication
+    the session state is updated (``logged_in``, ``username``, ``role``,
+    ``customer_id``) and the app reruns to show the main dashboard.
+    """
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown("""
         <div class="login-brand animate-in">
@@ -315,6 +384,17 @@ def login_page():
 #  SIDEBAR
 # ====================================================================== #
 def sidebar():
+    """
+    Render the navigation sidebar and return the currently selected page name.
+
+    Displays the logged-in user's name and role, then shows a role-appropriate
+    set of navigation options (customers see account/transaction pages; admins
+    see management pages).  Also renders a Sign Out button that clears session
+    state and reruns the app.
+
+    Returns:
+        The label string of the currently selected radio option.
+    """
     with st.sidebar:
         st.markdown(f"""
             <div style="padding: 0.5rem 0 1rem 0;">
@@ -358,6 +438,13 @@ def sidebar():
 #  CUSTOMER PAGES
 # ====================================================================== #
 def customer_dashboard():
+    """
+    Render the customer dashboard showing all account cards and total portfolio balance.
+
+    Looks up the logged-in customer's accounts and renders each one as a
+    styled card (account type, balance, account number, active/closed status).
+    A summary card at the bottom shows the combined balance across all accounts.
+    """
     bank = st.session_state.bank
     cid = st.session_state.customer_id
     customer = bank.find_customer(cid)
@@ -395,6 +482,13 @@ def customer_dashboard():
 
 
 def deposit_page():
+    """
+    Render the deposit form allowing a customer to add funds to one of their accounts.
+
+    The customer selects an active account, enters an amount and optional
+    description, then submits.  On success the transaction ID is shown and
+    the state is saved to disk.
+    """
     _section("Deposit Funds", "Add money to your account.")
     bank, am = st.session_state.bank, st.session_state.acct_manager
     customer = bank.find_customer(st.session_state.customer_id)
@@ -410,11 +504,18 @@ def deposit_page():
             try:
                 tx = am.deposit(opts[sel], amount, desc); save()
                 _success(f"\u2705 <strong>${amount:,.2f}</strong> deposited successfully.<br><small>Transaction: {tx.transaction_id}</small>")
-            except (ValueError, RuntimeError) as e: st.error(str(e))
+            except (ValueError, RuntimeError) as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def withdraw_page():
+    """
+    Render the withdrawal form allowing a customer to take funds from one of their accounts.
+
+    The customer selects an active account, enters an amount and optional
+    description, then submits.  Balance and minimum-balance rules are enforced
+    by the underlying Account model; errors are surfaced via ``st.error``.
+    """
     _section("Withdraw Funds", "Take money from your account.")
     bank, am = st.session_state.bank, st.session_state.acct_manager
     customer = bank.find_customer(st.session_state.customer_id)
@@ -430,11 +531,19 @@ def withdraw_page():
             try:
                 tx = am.withdraw(opts[sel], amount, desc); save()
                 _success(f"\u2705 <strong>${amount:,.2f}</strong> withdrawn successfully.<br><small>Transaction: {tx.transaction_id}</small>")
-            except (ValueError, RuntimeError) as e: st.error(str(e))
+            except (ValueError, RuntimeError) as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def transfer_page():
+    """
+    Render the transfer form allowing a customer to move funds between their own accounts.
+
+    Requires the customer to have at least two accounts.  The customer
+    selects a source and destination account and enters an amount.
+    Transferring to the same account is blocked client-side before hitting
+    the service layer.
+    """
     _section("Transfer Funds", "Move money between your accounts.")
     bank, am = st.session_state.bank, st.session_state.acct_manager
     customer = bank.find_customer(st.session_state.customer_id)
@@ -454,11 +563,18 @@ def transfer_page():
                 try:
                     am.transfer(opts[fr], opts[to], amount); save()
                     _success(f"\u2705 <strong>${amount:,.2f}</strong> transferred successfully.")
-                except (ValueError, RuntimeError) as e: st.error(str(e))
+                except (ValueError, RuntimeError) as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def transaction_history_page():
+    """
+    Render the transaction history page showing all activity for a selected account.
+
+    Transactions are displayed in reverse-chronological order (newest first),
+    each rendered as a styled row with an icon, description, timestamp, and
+    a colour-coded amount (green for credits, red for debits).
+    """
     _section("Transaction History", "A complete record of your activity.")
     bank, am = st.session_state.bank, st.session_state.acct_manager
     customer = bank.find_customer(st.session_state.customer_id)
@@ -490,6 +606,16 @@ def transaction_history_page():
 
 
 def loans_page():
+    """
+    Render the customer loans page with two tabs: existing loans and a new application form.
+
+    The "My Loans" tab lists all loans with their status, EMI, and remaining
+    balance.  Approved loans show an inline payment form where the customer
+    selects which account to pay from; the amount is validated against the
+    account balance and deducted before the loan balance is reduced.  The
+    "Apply for Loan" tab is hidden if a pending application already exists,
+    preventing duplicates.
+    """
     _section("Loans", "View your loans or apply for a new one.")
     bank = st.session_state.bank
     cid = st.session_state.customer_id
@@ -507,12 +633,28 @@ def loans_page():
                 st.caption(f"Rate: {loan.interest_rate*100:.1f}%  \u2022  Term: {loan.duration_months} months")
                 if loan.rejection_reason: st.error(f"Reason: {loan.rejection_reason}")
                 if loan.status == LoanStatus.APPROVED:
-                    pay = st.text_input("Payment ($)", value=str(loan.emi), key=f"p_{loan.loan_id}")
-                    if st.button("Make Payment", key=f"pb_{loan.loan_id}"):
-                        try:
-                            loan.make_payment(Decimal(pay)); save()
-                            _success(f"Payment applied. Remaining: ${loan.remaining_balance:,.2f}")
-                        except (ValueError, RuntimeError) as e: st.error(str(e))
+                    customer = bank.find_customer(cid)
+                    opts = _acct_options(bank, customer)
+                    if not opts:
+                        _warn("You need an active account to make a loan payment.")
+                    else:
+                        am = st.session_state.acct_manager
+                        pay_acct = st.selectbox("Pay from account", list(opts.keys()), key=f"pa_{loan.loan_id}")
+                        pay = st.text_input("Payment ($)", value=str(loan.emi), key=f"p_{loan.loan_id}")
+                        if st.button("Make Payment", key=f"pb_{loan.loan_id}"):
+                            try:
+                                amount = Decimal(pay)
+                                acct_num = opts[pay_acct]
+                                acct = bank.find_account(acct_num)
+                                if acct.balance < amount:
+                                    _error(f"Insufficient funds. Account balance is ${acct.balance:,.2f} but payment is ${amount:,.2f}.")
+                                else:
+                                    am.withdraw(acct_num, amount, f"Loan payment for {loan.loan_id}")
+                                    loan.make_payment(amount)
+                                    save()
+                                    _success(f"Payment of ${amount:,.2f} deducted from account {acct_num}. Loan remaining: ${loan.remaining_balance:,.2f}")
+                            except (ValueError, RuntimeError, InvalidOperation) as e:
+                                _error(e)
     with tab2:
         has_pending = any(l.status == LoanStatus.PENDING for l in loans)
         if has_pending: _warn("You already have a pending application.")
@@ -528,11 +670,18 @@ def loans_page():
                     loan = Loan(lid, cid, p, r, term); bank.add_loan(loan); save()
                     emi = loan.calculate_emi()
                     _success(f"\u2705 Application <strong>{lid}</strong> submitted!<br>Estimated EMI: <strong>${emi:,.2f}/month</strong>")
-                except (ValueError, InvalidOperation) as e: st.error(str(e))
+                except (ValueError, InvalidOperation) as e: _error(e)
             st.markdown('</div>', unsafe_allow_html=True)
 
 
 def cards_page():
+    """
+    Render the customer cards page listing all debit and credit cards issued to them.
+
+    Each card is shown in a collapsible expander with its number, expiry, and
+    status.  Debit cards show their linked account; credit cards show credit
+    limit, outstanding balance, and available credit.
+    """
     _section("My Cards", "View your debit and credit cards.")
     bank = st.session_state.bank
     cards = [c for c in bank._cards.values() if c.issued_to_customer_id == st.session_state.customer_id]
@@ -551,6 +700,13 @@ def cards_page():
 #  ADMIN PAGES
 # ====================================================================== #
 def admin_dashboard():
+    """
+    Render the admin dashboard with a high-level system overview.
+
+    Displays stat cards for total customers, accounts, active loans, and
+    cards issued.  A warning banner is shown when there are pending loan
+    applications awaiting review.
+    """
     bank = st.session_state.bank
     _section("Admin Dashboard", "System overview and management.")
     custs = len(bank._customers); accts = len(bank._accounts)
@@ -568,6 +724,13 @@ def admin_dashboard():
 
 
 def register_customer_page():
+    """
+    Render the admin form for registering a new customer and creating their login.
+
+    Collects first name, last name, email, phone, username, and password.
+    On submission, creates a Customer entity, registers it with the Bank,
+    and registers a CUSTOMER-role user with the AuthService.
+    """
     _section("Register Customer", "Create a new customer profile and login.")
     bank, auth = st.session_state.bank, st.session_state.auth
     st.markdown('<div class="form-section">', unsafe_allow_html=True)
@@ -582,11 +745,18 @@ def register_customer_page():
                 c = Customer(cid, fn, ln, email, phone); bank.add_customer(c)
                 auth.register(uname, pw, Role.CUSTOMER, cid); save()
                 _success(f"\u2705 <strong>{fn} {ln}</strong> registered as <code>{cid}</code><br>Login: <code>{uname}</code>")
-            except ValueError as e: st.error(str(e))
+            except ValueError as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def create_account_page():
+    """
+    Render the admin form for opening a new savings or checking account for a customer.
+
+    The admin selects an existing customer, chooses the account type, and
+    enters an initial deposit.  The AccountManager handles creation and
+    logs the opening deposit transaction automatically.
+    """
     _section("Create Account", "Open a new savings or checking account.")
     bank, am = st.session_state.bank, st.session_state.acct_manager
     customers = bank.get_all_customers()
@@ -601,11 +771,19 @@ def create_account_page():
             d = Decimal(dep); at = AccountType.SAVINGS if atype == "Savings" else AccountType.CHECKING
             a = am.create_account(copts[sel], at, d); save()
             _success(f"\u2705 {atype} account <strong>{a.account_number}</strong> created with ${d:,.2f}")
-        except (ValueError, KeyError) as e: st.error(str(e))
+        except (ValueError, KeyError) as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def manage_loans_page():
+    """
+    Render the admin loan management page with tabs for pending and processed loans.
+
+    The "Pending" tab shows each unreviewed application with Approve/Reject
+    buttons.  Approving calls ``loan.approve()``; rejecting calls ``loan.reject()``.
+    Both actions save state and rerun the app to refresh the list.  The
+    "Processed" tab shows all approved, rejected, or closed loans read-only.
+    """
     _section("Manage Loans", "Review and process loan applications.")
     bank = st.session_state.bank
     pending = [l for l in bank._loans.values() if l.status == LoanStatus.PENDING]
@@ -645,6 +823,13 @@ def manage_loans_page():
 
 
 def issue_card_page():
+    """
+    Render the admin form for issuing a debit or credit card to a customer.
+
+    Debit card issuance requires the customer to have at least one active
+    account to link.  Credit card issuance requires a credit limit.  Both
+    card types require a 4-digit PIN which is hashed before storage.
+    """
     _section("Issue Card", "Issue a debit or credit card to a customer.")
     bank = st.session_state.bank
     customers = bank.get_all_customers()
@@ -668,11 +853,17 @@ def issue_card_page():
                 else: card = CreditCard(cn, cid, pin, Decimal(limit))
                 bank.add_card(card); save()
                 _success(f"\u2705 {ctype} card <strong>{cn}</strong> issued. Expires {card.expiry}")
-            except (ValueError, InvalidOperation) as e: st.error(str(e))
+            except (ValueError, InvalidOperation) as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 def all_customers_page():
+    """
+    Render the admin read-only view of all registered customers.
+
+    Each customer is shown in a collapsible expander with their contact
+    details and a list of linked accounts including type and current balance.
+    """
     _section("All Customers", "View registered customer profiles.")
     bank = st.session_state.bank
     customers = bank.get_all_customers()
@@ -692,6 +883,13 @@ def all_customers_page():
 #  ROUTER
 # ====================================================================== #
 def main():
+    """
+    Application entry point and page router.
+
+    Initialises session state and injects CSS on every rerun, then routes
+    to either the login page (unauthenticated) or the appropriate page
+    function based on the sidebar selection and the logged-in user's role.
+    """
     init_state()
     inject_css()
     if not st.session_state.logged_in: login_page(); return
