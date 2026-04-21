@@ -410,7 +410,7 @@ class CurrentAccount(Account):
         account_number: str,
         customer_id: str,
         initial_deposit: Decimal = Decimal("0.00"),
-        overdraft_limit: Decimal = Decimal("500.00"),
+        overdraft_limit: Decimal = Decimal("0.00"),
     ) -> None:
         """
         Create a CurrentAccount (checking).

@@ -7,7 +7,10 @@ accounts they own.  The Bank class is responsible for creating and
 storing Customer instances.
 """
 
+import re
 from typing import List
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class Customer:
@@ -56,6 +59,8 @@ class Customer:
             raise ValueError("Last name cannot be blank.")
         if not email or not email.strip():
             raise ValueError("Email cannot be blank.")
+        if not _EMAIL_RE.match(email.strip()):
+            raise ValueError("Invalid email address. Must be in the format user@example.com.")
         if not phone or not phone.strip():
             raise ValueError("Phone cannot be blank.")
 
@@ -165,6 +170,8 @@ class Customer:
             if key in allowed:
                 if not value or not value.strip():
                     raise ValueError(f"{key} cannot be blank.")
+                if key == "email" and not _EMAIL_RE.match(value.strip()):
+                    raise ValueError("Invalid email address. Must be in the format user@example.com.")
                 setattr(self, f"_{key}", value.strip())
 
     # ------------------------------------------------------------------ #
