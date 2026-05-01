@@ -39,7 +39,7 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     #  Initialise core objects
     # ------------------------------------------------------------------ #
-    bank = Bank("Python National Bank", "BR-001")
+    bank = Bank("NovaBank", "BR-001")
     tx_manager = TransactionManager()
     acct_manager = AccountManager(bank, tx_manager)
     auth = AuthService()

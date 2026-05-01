@@ -7,6 +7,7 @@ domain models.  It orchestrates multi-step operations such as transfers
 every mutation is properly logged through the TransactionManager.
 """
 
+from datetime import datetime
 from decimal import Decimal
 from typing import List, Tuple
 
@@ -14,7 +15,10 @@ from src.models.account import Account
 from src.models.bank import Bank
 from src.models.transaction import Transaction
 from src.services.transaction_manager import TransactionManager
-from src.utils.enums import AccountType, TransactionType
+from src.utils.enums import AccountType, TransactionStatus, TransactionType
+
+_DEPOSIT_SINGLE_LIMIT = Decimal("5000.00")
+_DEPOSIT_DAILY_LIMIT = Decimal("10000.00")
 
 
 class AccountManager:
@@ -96,26 +100,88 @@ class AccountManager:
         """
         Deposit funds into an account.
 
+        Deposits >= $5,000 or that push the daily total over $10,000 are
+        flagged: a PENDING transaction is recorded but the balance is NOT
+        credited until an admin approves it.
+
         Args:
             account_number: Target account.
             amount: Positive amount to deposit.
             description: Optional note.
 
         Returns:
-            The completed Transaction record.
+            The Transaction record (COMPLETED or PENDING).
 
         Raises:
             KeyError: If the account does not exist.
             ValueError / RuntimeError: Propagated from Account.deposit.
         """
         account = self._get_account(account_number)
-        meta = account.deposit(amount, description)
 
+        flagged = (
+            amount >= _DEPOSIT_SINGLE_LIMIT
+            or self._daily_deposit_total(account_number) + amount > _DEPOSIT_DAILY_LIMIT
+        )
+
+        if flagged:
+            tx = self._build_transaction(
+                amount=amount,
+                transaction_type=TransactionType.DEPOSIT,
+                target_account=account_number,
+                description=description or "Deposit",
+            )
+            self._transaction_manager.record_transaction(tx)
+            account.add_transaction_id(tx.transaction_id)
+            return tx  # status stays PENDING — balance unchanged
+
+        meta = account.deposit(amount, description)
         tx = self._build_transaction(**meta)
         tx.complete()
         self._transaction_manager.record_transaction(tx)
         account.add_transaction_id(tx.transaction_id)
         return tx
+
+    def approve_pending_deposit(self, tx_id: str) -> None:
+        """
+        Approve a flagged deposit: credit the account and mark COMPLETED.
+
+        Raises:
+            KeyError: If the transaction does not exist.
+            ValueError: If it is not a pending deposit.
+        """
+        tx = self._transaction_manager.get_transaction(tx_id)
+        if tx.status != TransactionStatus.PENDING or tx.transaction_type != TransactionType.DEPOSIT:
+            raise ValueError(f"{tx_id} is not a pending deposit.")
+        account = self._get_account(tx.target_account)
+        account._balance += tx.amount
+        tx.complete()
+
+    def reject_pending_deposit(self, tx_id: str) -> None:
+        """
+        Reject a flagged deposit: mark FAILED without touching the balance.
+
+        Raises:
+            KeyError: If the transaction does not exist.
+            ValueError: If it is not a pending deposit.
+        """
+        tx = self._transaction_manager.get_transaction(tx_id)
+        if tx.status != TransactionStatus.PENDING or tx.transaction_type != TransactionType.DEPOSIT:
+            raise ValueError(f"{tx_id} is not a pending deposit.")
+        tx.fail()
+
+    def _daily_deposit_total(self, account_number: str) -> Decimal:
+        """Sum of COMPLETED deposits into this account today."""
+        today = datetime.now().date()
+        return sum(
+            (
+                tx.amount
+                for tx in self._transaction_manager.get_transactions_for_account(account_number)
+                if tx.transaction_type == TransactionType.DEPOSIT
+                and tx.status == TransactionStatus.COMPLETED
+                and tx.timestamp.date() == today
+            ),
+            Decimal("0.00"),
+        )
 
     # ------------------------------------------------------------------ #
     #  Withdrawal

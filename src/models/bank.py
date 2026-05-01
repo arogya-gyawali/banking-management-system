@@ -105,6 +105,65 @@ class Bank:
             raise KeyError(f"Customer {customer_id} not found.")
         del self._customers[customer_id]
 
+    def offboard_customer(self, customer_id: str) -> None:
+        """
+        Fully remove a customer and all their associated data.
+
+        Checks that the customer has no remaining funds or outstanding
+        loan balance before proceeding.  On success, closes all accounts,
+        cancels all cards, removes pending loans, and deletes the customer.
+
+        Args:
+            customer_id: ID of the customer to offboard.
+
+        Raises:
+            KeyError: If the customer does not exist.
+            ValueError: If the customer has a non-zero account balance or
+                        an outstanding loan balance.
+        """
+        customer = self._customers.get(customer_id)
+        if customer is None:
+            raise KeyError(f"Customer {customer_id} not found.")
+
+        for acct_num in customer.account_numbers:
+            acct = self._accounts.get(acct_num)
+            if acct and acct.balance > 0:
+                raise ValueError(
+                    f"Account {acct_num} still has a balance of "
+                    f"${acct.balance:,.2f}. The customer must withdraw "
+                    f"all funds before their account can be closed."
+                )
+
+        for loan in self.get_loans_for_customer(customer_id):
+            if loan.remaining_balance > 0:
+                raise ValueError(
+                    f"Loan {loan.loan_id} has an outstanding balance of "
+                    f"${loan.remaining_balance:,.2f}. It must be repaid "
+                    f"before the customer can be removed."
+                )
+
+        for acct_num in list(customer.account_numbers):
+            acct = self._accounts.get(acct_num)
+            if acct and acct.is_active:
+                acct.close()
+            if acct_num in self._accounts:
+                del self._accounts[acct_num]
+
+        cards_to_remove = [
+            card_num for card_num, card in self._cards.items()
+            if card.customer_id == customer_id
+        ]
+        for card_num in cards_to_remove:
+            del self._cards[card_num]
+
+        loans_to_remove = [
+            loan.loan_id for loan in self.get_loans_for_customer(customer_id)
+        ]
+        for loan_id in loans_to_remove:
+            del self._loans[loan_id]
+
+        del self._customers[customer_id]
+
     def find_customer(self, customer_id: str) -> Optional[Customer]:
         """
         Look up a customer by ID.
@@ -152,6 +211,14 @@ class Bank:
         customer = self._customers.get(customer_id)
         if customer is None:
             raise KeyError(f"Customer {customer_id} not found.")
+
+        for acct_num in customer.account_numbers:
+            existing = self._accounts.get(acct_num)
+            if existing is not None and existing.account_type == account_type:
+                raise ValueError(
+                    f"Customer {customer_id} already has a "
+                    f"{account_type.value} account ({acct_num})."
+                )
 
         account_number = self._id_generator.generate_account_number()
 

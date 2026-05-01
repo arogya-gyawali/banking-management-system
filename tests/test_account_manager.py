@@ -16,10 +16,17 @@ def setup():
     tx_manager = TransactionManager()
     am = AccountManager(bank, tx_manager)
 
-    cust = Customer("C-001", "Jane", "Doe", "jane@test.com", "555-0001")
+    _KYC = dict(
+        date_of_birth="1990-01-01", nationality="American",
+        address="123 Main St", city="Springfield", state="IL",
+        zip_code="62701", country="USA",
+        id_type="Passport", id_number="P1234567",
+        employment_status="Employed", annual_income="$50,000–$100,000",
+    )
+    cust = Customer("C-001", "Jane", "Doe", "jane@test.com", "555-0001", **_KYC)
     bank.add_customer(cust)
 
-    cust2 = Customer("C-002", "John", "Smith", "john@test.com", "555-0002")
+    cust2 = Customer("C-002", "John", "Smith", "john@test.com", "555-0002", **_KYC)
     bank.add_customer(cust2)
 
     return bank, tx_manager, am

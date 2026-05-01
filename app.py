@@ -6,6 +6,7 @@ Run with:
 """
 
 import streamlit as st
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from src.models.customer import Customer
@@ -23,7 +24,7 @@ from src.utils.data_store import DataStore
 #  PAGE CONFIG
 # ====================================================================== #
 st.set_page_config(
-    page_title="Python National Bank",
+    page_title="NovaBank",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -34,177 +35,175 @@ st.set_page_config(
 # ====================================================================== #
 def inject_css():
     """
-    Inject the custom dark-navy and gold CSS theme into the Streamlit page.
+    Inject the professional light theme CSS into the Streamlit page.
 
-    Loads Google Fonts (Playfair Display, DM Sans, JetBrains Mono) and
-    applies CSS variables, component overrides, and animation keyframes
-    that give the app its premium banking aesthetic.
+    Inspired by Chase Online Banking and Stripe Dashboard: light gray
+    background, white content cards with subtle shadows, deep navy sidebar,
+    and professional blue accents.
     """
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {
-        --navy-900: #0a0e1a;
-        --navy-800: #0f1629;
-        --navy-700: #151d35;
-        --navy-600: #1b2544;
-        --navy-500: #243055;
-        --gold-400: #d4a853;
-        --gold-300: #e8c175;
-        --gold-200: #f0d49b;
-        --emerald: #34d399;
-        --rose: #fb7185;
-        --sky: #38bdf8;
-        --glass: rgba(255, 255, 255, 0.04);
-        --glass-border: rgba(255, 255, 255, 0.08);
-        --text-primary: #f1f5f9;
-        --text-secondary: #94a3b8;
-        --text-muted: #64748b;
+        --bg:        #0d1117;
+        --surface:   #161b22;
+        --surface-2: #1c2330;
+        --border:    #30363d;
+        --blue:      #4493f8;
+        --blue-dim:  #1f3a5f;
+        --green:     #3fb950;
+        --green-dim: #1a3a21;
+        --red:       #f85149;
+        --red-dim:   #3a1f1f;
+        --amber:     #d29922;
+        --amber-dim: #3a2e10;
+        --text-1:    #e6edf3;
+        --text-2:    #8b949e;
+        --text-3:    #484f58;
+        --mono:      'JetBrains Mono', monospace;
     }
 
-    .stApp {
-        background: var(--navy-900) !important;
-        color: var(--text-primary) !important;
-        font-family: 'DM Sans', sans-serif !important;
-    }
+    /* ── Base ── */
+    .stApp { background: var(--bg) !important; font-family: 'Inter', sans-serif !important; color: var(--text-1) !important; }
     .stApp > header { background: transparent !important; }
-    .block-container { padding-top: 2rem !important; max-width: 1200px !important; }
+    .block-container { padding-top: 2.5rem !important; max-width: 1100px !important; }
 
+    /* ── Sidebar ── */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, var(--navy-800) 0%, var(--navy-900) 100%) !important;
-        border-right: 1px solid var(--glass-border) !important;
+        background: #010409 !important;
+        border-right: 1px solid var(--border) !important;
     }
-    section[data-testid="stSidebar"] * { color: var(--text-primary) !important; }
+    section[data-testid="stSidebar"] * { color: #8b949e !important; }
+    section[data-testid="stSidebar"] .stRadio label { padding: 0.45rem 0.6rem; border-radius: 6px; transition: background 0.15s; }
+    section[data-testid="stSidebar"] .stRadio label:hover { background: rgba(177,186,196,0.08) !important; }
 
-    h1, h2, h3 { font-family: 'Playfair Display', serif !important; color: var(--text-primary) !important; }
-    p, span, label, li, div { color: var(--text-secondary) !important; }
+    /* ── Typography ── */
+    h1, h2, h3 { font-family: 'Inter', sans-serif !important; color: var(--text-1) !important; font-weight: 700 !important; letter-spacing: -0.02em !important; }
+    p, span, label, li, div { color: var(--text-1) !important; }
 
+    /* ── Inputs ── */
     .stTextInput > div > div > input,
     .stSelectbox > div > div,
     .stNumberInput > div > div > input {
-        background: var(--navy-700) !important;
-        border: 1px solid var(--glass-border) !important;
-        color: var(--text-primary) !important;
-        border-radius: 10px !important;
-        font-family: 'DM Sans', sans-serif !important;
+        background: var(--surface-2) !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text-1) !important;
+        border-radius: 6px !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.9rem !important;
     }
     .stTextInput > div > div > input:focus {
-        border-color: var(--gold-400) !important;
-        box-shadow: 0 0 0 2px rgba(212, 168, 83, 0.15) !important;
+        border-color: var(--blue) !important;
+        box-shadow: 0 0 0 3px rgba(68,147,248,0.15) !important;
     }
 
+    /* ── Buttons ── */
     .stButton > button {
-        background: linear-gradient(135deg, var(--gold-400) 0%, #c4963f 100%) !important;
-        color: var(--navy-900) !important;
-        border: none !important;
-        border-radius: 10px !important;
-        font-family: 'DM Sans', sans-serif !important;
+        background: #238636 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(240,246,252,0.1) !important;
+        border-radius: 6px !important;
+        font-family: 'Inter', sans-serif !important;
         font-weight: 600 !important;
-        letter-spacing: 0.5px !important;
-        padding: 0.6rem 1.5rem !important;
-        transition: all 0.3s ease !important;
-        text-transform: uppercase !important;
-        font-size: 0.8rem !important;
+        font-size: 0.875rem !important;
+        padding: 0.5rem 1.2rem !important;
+        transition: background 0.2s !important;
+        text-transform: none !important;
     }
     .stButton > button:hover {
-        transform: translateY(-1px) !important;
-        box-shadow: 0 8px 25px rgba(212, 168, 83, 0.3) !important;
+        background: #2ea043 !important;
+        transform: none !important;
     }
 
+    /* ── Metrics ── */
     [data-testid="stMetric"] {
-        background: var(--glass) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        padding: 1.2rem !important;
     }
-    [data-testid="stMetricValue"] { color: var(--text-primary) !important; font-family: 'Playfair Display', serif !important; }
-    [data-testid="stMetricLabel"] { color: var(--text-muted) !important; text-transform: uppercase !important; font-size: 0.7rem !important; letter-spacing: 1.5px !important; }
+    [data-testid="stMetricValue"] { color: var(--text-1) !important; font-family: 'Inter', sans-serif !important; font-weight: 700 !important; }
+    [data-testid="stMetricLabel"] { color: var(--text-2) !important; text-transform: uppercase !important; font-size: 0.68rem !important; letter-spacing: 1px !important; }
 
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0 !important; background: var(--navy-800) !important;
-        border-radius: 12px !important; padding: 4px !important; border: 1px solid var(--glass-border) !important;
-    }
-    .stTabs [data-baseweb="tab"] { border-radius: 10px !important; color: var(--text-muted) !important; font-family: 'DM Sans', sans-serif !important; font-weight: 500 !important; }
-    .stTabs [aria-selected="true"] { background: var(--navy-600) !important; color: var(--gold-300) !important; }
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] { gap: 0 !important; background: var(--surface) !important; border-radius: 8px !important; padding: 3px !important; border: 1px solid var(--border) !important; }
+    .stTabs [data-baseweb="tab"] { border-radius: 6px !important; color: var(--text-2) !important; font-family: 'Inter', sans-serif !important; font-weight: 500 !important; font-size: 0.875rem !important; }
+    .stTabs [aria-selected="true"] { background: var(--surface-2) !important; color: var(--text-1) !important; }
 
-    hr { border-color: var(--glass-border) !important; opacity: 0.5; }
+    hr { border-color: var(--border) !important; }
 
-    .hero-title {
-        font-family: 'Playfair Display', serif; font-size: 3.2rem; font-weight: 800;
-        background: linear-gradient(135deg, var(--gold-200) 0%, var(--gold-400) 50%, var(--gold-200) 100%);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.1;
-    }
-    .hero-sub { font-family: 'DM Sans', sans-serif; font-size: 1rem; color: var(--text-muted); letter-spacing: 3px; text-transform: uppercase; margin-top: 0.5rem; }
+    /* ── Login ── */
+    .login-container { max-width: 400px; margin: 5rem auto; }
+    .login-brand { text-align: center; margin-bottom: 2rem; }
+    .login-brand .icon { font-size: 2.8rem; margin-bottom: 0.8rem; }
+    .hero-title { font-family: 'Inter', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-1) !important; letter-spacing: -0.03em; }
+    .hero-sub { font-size: 0.85rem; color: var(--text-2) !important; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.4rem; }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2.5rem; }
 
-    .glass-card {
-        background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-        border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.8rem; margin-bottom: 1rem;
-        backdrop-filter: blur(10px); transition: all 0.3s ease;
-    }
-    .glass-card:hover { border-color: rgba(212, 168, 83, 0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    /* ── Section headings ── */
+    .section-title { font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text-1) !important; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+    .section-sub { font-size: 0.85rem; color: var(--text-2) !important; margin-bottom: 1.5rem; }
 
-    .account-card {
-        background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-800) 100%);
-        border: 1px solid var(--glass-border); border-radius: 20px; padding: 2rem;
-        position: relative; overflow: hidden;
-    }
-    .account-card::before {
-        content: ''; position: absolute; top: -50%; right: -50%; width: 100%; height: 100%;
-        background: radial-gradient(circle, rgba(212,168,83,0.06) 0%, transparent 70%);
-    }
-    .account-card .acc-type { font-size: 0.7rem; color: var(--gold-400); text-transform: uppercase; letter-spacing: 2.5px; font-weight: 600; margin-bottom: 0.8rem; }
-    .account-card .acc-balance { font-family: 'Playfair Display', serif; font-size: 2.6rem; font-weight: 700; color: var(--text-primary); line-height: 1; }
-    .account-card .acc-detail { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; }
-    .account-card .acc-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.8rem; }
-    .status-active { background: rgba(52,211,153,0.15); color: var(--emerald); border: 1px solid rgba(52,211,153,0.3); }
-    .status-closed { background: rgba(251,113,133,0.15); color: var(--rose); border: 1px solid rgba(251,113,133,0.3); }
+    /* ── Sidebar brand ── */
+    .sidebar-brand { font-family: 'Inter', sans-serif; font-size: 1.05rem; color: var(--text-1) !important; font-weight: 700; letter-spacing: -0.01em; }
+    .sidebar-user { font-size: 0.8rem; color: var(--text-2) !important; margin-top: 0.2rem; }
+    .sidebar-role { display: inline-block; font-size: 0.65rem; padding: 2px 8px; border-radius: 20px; background: var(--blue-dim); color: var(--blue) !important; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-top: 0.3rem; border: 1px solid rgba(68,147,248,0.3); }
 
-    .success-toast { background: linear-gradient(135deg, rgba(52,211,153,0.1) 0%, rgba(52,211,153,0.05) 100%); border: 1px solid rgba(52,211,153,0.3); border-left: 4px solid var(--emerald); color: var(--emerald); padding: 1.2rem 1.5rem; border-radius: 12px; margin: 1rem 0; }
-    .success-toast strong { color: var(--emerald); }
-    .info-toast { background: linear-gradient(135deg, rgba(56,189,248,0.1) 0%, rgba(56,189,248,0.05) 100%); border: 1px solid rgba(56,189,248,0.2); border-left: 4px solid var(--sky); color: var(--sky); padding: 1.2rem 1.5rem; border-radius: 12px; margin: 1rem 0; }
-    .warning-toast { background: linear-gradient(135deg, rgba(212,168,83,0.1) 0%, rgba(212,168,83,0.05) 100%); border: 1px solid rgba(212,168,83,0.2); border-left: 4px solid var(--gold-400); color: var(--gold-300); padding: 1.2rem 1.5rem; border-radius: 12px; margin: 1rem 0; }
+    /* ── Form section ── */
+    .form-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; margin: 1rem 0; }
 
-    .tx-row { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 0.5rem; background: var(--glass); border: 1px solid var(--glass-border); transition: all 0.2s ease; }
-    .tx-row:hover { background: rgba(255,255,255,0.06); }
-    .tx-icon { font-size: 1.5rem; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; margin-right: 1rem; flex-shrink: 0; }
-    .tx-icon-deposit { background: rgba(52,211,153,0.12); }
-    .tx-icon-withdrawal { background: rgba(251,113,133,0.12); }
-    .tx-icon-transfer { background: rgba(56,189,248,0.12); }
-    .tx-icon-other { background: rgba(212,168,83,0.12); }
+    /* ── Account cards ── */
+    .account-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 1.8rem; position: relative; overflow: hidden; }
+    .account-card::before { content: ''; position: absolute; top: -40%; right: -20%; width: 70%; height: 140%; background: radial-gradient(circle, rgba(68,147,248,0.1) 0%, transparent 65%); }
+    .account-card .acc-type { font-size: 0.68rem; color: var(--blue) !important; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; margin-bottom: 0.8rem; }
+    .account-card .acc-balance { font-family: 'Inter', sans-serif; font-size: 2.4rem; font-weight: 800; color: var(--text-1) !important; line-height: 1; letter-spacing: -0.03em; }
+    .account-card .acc-detail { font-family: var(--mono); font-size: 0.72rem; color: var(--text-2) !important; margin-top: 0.5rem; }
+    .account-card .acc-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.8rem; }
+    .status-active { background: var(--green-dim); color: var(--green) !important; border: 1px solid rgba(63,185,80,0.3); }
+    .status-closed { background: var(--red-dim); color: var(--red) !important; border: 1px solid rgba(248,81,73,0.3); }
+
+    /* ── Toasts ── */
+    .success-toast { background: var(--green-dim); border: 1px solid rgba(63,185,80,0.4); border-left: 3px solid var(--green); color: var(--green) !important; padding: 1rem 1.4rem; border-radius: 8px; margin: 1rem 0; font-size: 0.9rem; }
+    .success-toast strong { color: #7ee787 !important; }
+    .info-toast { background: var(--blue-dim); border: 1px solid rgba(68,147,248,0.4); border-left: 3px solid var(--blue); color: var(--blue) !important; padding: 1rem 1.4rem; border-radius: 8px; margin: 1rem 0; font-size: 0.9rem; }
+    .warning-toast { background: var(--amber-dim); border: 1px solid rgba(210,153,34,0.4); border-left: 3px solid var(--amber); color: var(--amber) !important; padding: 1rem 1.4rem; border-radius: 8px; margin: 1rem 0; font-size: 0.9rem; }
+
+    /* ── Transactions ── */
+    .tx-row { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.1rem; border-radius: 8px; margin-bottom: 0.4rem; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.15s; }
+    .tx-row:hover { border-color: #8b949e; }
+    .tx-icon { font-size: 1.2rem; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 8px; margin-right: 0.9rem; flex-shrink: 0; }
+    .tx-icon-deposit { background: var(--green-dim); }
+    .tx-icon-withdrawal { background: var(--red-dim); }
+    .tx-icon-transfer { background: var(--blue-dim); }
+    .tx-icon-other { background: var(--amber-dim); }
     .tx-info { flex-grow: 1; }
-    .tx-type { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
-    .tx-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
-    .tx-amount { font-weight: 700; font-size: 1.05rem; text-align: right; flex-shrink: 0; }
-    .tx-positive { color: var(--emerald); }
-    .tx-negative { color: var(--rose); }
+    .tx-type { font-weight: 600; font-size: 0.875rem; color: var(--text-1) !important; }
+    .tx-meta { font-family: var(--mono); font-size: 0.68rem; color: var(--text-2) !important; margin-top: 2px; }
+    .tx-amount { font-weight: 700; font-size: 1rem; text-align: right; flex-shrink: 0; }
+    .tx-positive { color: var(--green) !important; }
+    .tx-negative { color: var(--red) !important; }
 
+    /* ── Stat cards ── */
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1rem 0; }
-    .stat-card { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 14px; padding: 1.2rem 1.5rem; text-align: center; }
-    .stat-value { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: var(--text-primary); }
-    .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 0.3rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--blue); border-radius: 8px; padding: 1.2rem 1.5rem; }
+    .stat-value { font-family: 'Inter', sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--text-1) !important; letter-spacing: -0.03em; }
+    .stat-label { font-size: 0.68rem; color: var(--text-2) !important; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.3rem; }
 
-    .login-container { max-width: 420px; margin: 4rem auto; }
-    .login-brand { text-align: center; margin-bottom: 2.5rem; }
-    .login-brand .icon { font-size: 3rem; margin-bottom: 1rem; }
-    .login-box { background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%); border: 1px solid var(--glass-border); border-radius: 20px; padding: 2.5rem; backdrop-filter: blur(20px); }
+    /* ── Glass card ── */
+    .glass-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.6rem; margin-bottom: 1rem; }
 
-    .section-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem; }
-    .section-sub { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
-    .sidebar-brand { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--gold-300) !important; font-weight: 700; }
-    .sidebar-user { font-size: 0.8rem; color: var(--text-muted) !important; }
-    .sidebar-role { display: inline-block; font-size: 0.65rem; padding: 3px 10px; border-radius: 20px; background: rgba(212,168,83,0.15); color: var(--gold-400) !important; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-top: 0.3rem; }
-    .form-section { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; margin: 1rem 0; }
-
+    /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: var(--navy-900); }
-    ::-webkit-scrollbar-thumb { background: var(--navy-600); border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-in { animation: fadeUp 0.5s ease-out forwards; }
-    .delay-1 { animation-delay: 0.1s; opacity: 0; }
-    .delay-2 { animation-delay: 0.2s; opacity: 0; }
-    .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    /* ── Animations ── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-in { animation: fadeUp 0.35s ease-out forwards; }
+    .delay-1 { animation-delay: 0.08s; opacity: 0; }
+    .delay-2 { animation-delay: 0.16s; opacity: 0; }
+    .delay-3 { animation-delay: 0.24s; opacity: 0; }
 
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
@@ -346,13 +345,15 @@ def login_page():
     st.markdown("""
         <div class="login-brand animate-in">
             <div class="icon">\U0001F3E6</div>
-            <div class="hero-title">Python National Bank</div>
-            <div class="hero-sub">Secure \u2022 Reliable \u2022 Modern</div>
+            <div class="hero-title">NovaBank</div>
+            <div class="hero-sub">Secure &bull; Reliable &bull; Modern</div>
         </div>
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="login-box animate-in delay-2">', unsafe_allow_html=True)
+    st.markdown('<p style="font-weight:600;color:#e6edf3;margin-bottom:0.3rem;">Username</p>', unsafe_allow_html=True)
     username = st.text_input("Username", placeholder="Enter your username", label_visibility="collapsed")
+    st.markdown('<p style="font-weight:600;color:#e6edf3;margin-bottom:0.3rem;margin-top:0.8rem;">Password</p>', unsafe_allow_html=True)
     password = st.text_input("Password", type="password", placeholder="Enter your password", label_visibility="collapsed")
 
     if st.button("Sign In", use_container_width=True):
@@ -372,9 +373,9 @@ def login_page():
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("""
         <div class="info-toast animate-in delay-3" style="margin-top: 1.5rem; text-align: center;">
-            <strong>First time?</strong>&ensp;Login:&ensp;
-            <code style="color: var(--sky);">admin</code> /
-            <code style="color: var(--sky);">admin123</code>
+            <strong>Demo credentials:</strong>&ensp;
+            <code style="background:#1f3a5f;padding:2px 6px;border-radius:4px;color:#4493f8;">admin</code> /
+            <code style="background:#1f3a5f;padding:2px 6px;border-radius:4px;color:#4493f8;">admin123</code>
         </div>
     """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -398,7 +399,7 @@ def sidebar():
     with st.sidebar:
         st.markdown(f"""
             <div style="padding: 0.5rem 0 1rem 0;">
-                <div class="sidebar-brand">\U0001F3E6 Python National Bank</div>
+                <div class="sidebar-brand">\U0001F3E6 NovaBank</div>
                 <div class="sidebar-user" style="margin-top:0.8rem;">{st.session_state.username}</div>
                 <div class="sidebar-role">{st.session_state.role.value}</div>
             </div>
@@ -421,6 +422,7 @@ def sidebar():
                 "\U0001F464  Register Customer",
                 "\U0001F3E6  Create Account",
                 "\U0001F4CB  Manage Loans",
+                "\U0001F4B0  Review Deposits",
                 "\U0001F4B3  Issue Card",
                 "\U0001F465  All Customers",
             ], label_visibility="collapsed")
@@ -503,7 +505,11 @@ def deposit_page():
         if amount:
             try:
                 tx = am.deposit(opts[sel], amount, desc); save()
-                _success(f"\u2705 <strong>${amount:,.2f}</strong> deposited successfully.<br><small>Transaction: {tx.transaction_id}</small>")
+                from src.utils.enums import TransactionStatus
+                if tx.status == TransactionStatus.PENDING:
+                    _warn(f"\u23F3 <strong>${amount:,.2f}</strong> deposit is <strong>pending admin review</strong> and will be credited once approved.<br><small>Transaction: {tx.transaction_id}</small>")
+                else:
+                    _success(f"\u2705 <strong>${amount:,.2f}</strong> deposited successfully.<br><small>Transaction: {tx.transaction_id}</small>")
             except (ValueError, RuntimeError) as e: _error(e)
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -708,10 +714,17 @@ def admin_dashboard():
     applications awaiting review.
     """
     bank = st.session_state.bank
+    tm = st.session_state.tx_manager
     _section("Admin Dashboard", "System overview and management.")
     custs = len(bank._customers); accts = len(bank._accounts)
     active_loans = sum(1 for l in bank._loans.values() if l.status == LoanStatus.APPROVED)
-    ncards = len(bank._cards); pending = sum(1 for l in bank._loans.values() if l.status == LoanStatus.PENDING)
+    ncards = len(bank._cards)
+    pending_loans = sum(1 for l in bank._loans.values() if l.status == LoanStatus.PENDING)
+    from src.utils.enums import TransactionStatus
+    pending_deposits = sum(
+        1 for tx in tm.get_all_transactions()
+        if tx.transaction_type.value == "deposit" and tx.status == TransactionStatus.PENDING
+    )
     st.markdown(f"""
         <div class="stat-grid animate-in">
             <div class="stat-card"><div class="stat-value">{custs}</div><div class="stat-label">Customers</div></div>
@@ -720,32 +733,82 @@ def admin_dashboard():
             <div class="stat-card"><div class="stat-value">{ncards}</div><div class="stat-label">Cards Issued</div></div>
         </div>
     """, unsafe_allow_html=True)
-    if pending > 0: _warn(f"\u26A0\uFE0F <strong>{pending}</strong> loan application(s) awaiting your review.")
+    if pending_loans > 0: _warn(f"\u26A0\uFE0F <strong>{pending_loans}</strong> loan application(s) awaiting your review.")
+    if pending_deposits > 0: _warn(f"\u26A0\uFE0F <strong>{pending_deposits}</strong> deposit(s) flagged and awaiting your review.")
 
 
 def register_customer_page():
     """
-    Render the admin form for registering a new customer and creating their login.
+    Render the admin form for registering a new customer with full KYC details.
 
-    Collects first name, last name, email, phone, username, and password.
-    On submission, creates a Customer entity, registers it with the Bank,
-    and registers a CUSTOMER-role user with the AuthService.
+    Collects personal info, address, government ID, employment details,
+    and login credentials.  Creates a Customer entity, registers it with
+    the Bank, and creates a CUSTOMER-role login via AuthService.
     """
-    _section("Register Customer", "Create a new customer profile and login.")
+    from src.models.customer import EMPLOYMENT_STATUSES, INCOME_RANGES, ID_TYPES
+    _section("Register Customer", "Create a new customer profile with full KYC details.")
     bank, auth = st.session_state.bank, st.session_state.auth
+
     st.markdown('<div class="form-section">', unsafe_allow_html=True)
+
+    st.markdown("**Personal Information**")
     c1, c2 = st.columns(2)
-    with c1: fn = st.text_input("First Name"); ln = st.text_input("Last Name"); email = st.text_input("Email")
-    with c2: phone = st.text_input("Phone"); uname = st.text_input("Login Username"); pw = st.text_input("Login Password", type="password")
-    if st.button("Register", use_container_width=True):
-        if not all([fn, ln, email, phone, uname, pw]): st.error("All fields are required.")
+    with c1:
+        fn = st.text_input("First Name")
+        ln = st.text_input("Last Name")
+        dob = st.date_input("Date of Birth", min_value=date(1900, 1, 1), max_value=date.today(), value=date(1990, 1, 1))
+    with c2:
+        email = st.text_input("Email Address")
+        phone = st.text_input("Phone Number")
+        nationality = st.text_input("Nationality")
+
+    st.markdown("---")
+    st.markdown("**Residential Address**")
+    address = st.text_input("Street Address")
+    c3, c4, c5 = st.columns(3)
+    with c3: city = st.text_input("City")
+    with c4: state = st.text_input("State / Province")
+    with c5: zip_code = st.text_input("ZIP / Postal Code")
+    country = st.text_input("Country")
+
+    st.markdown("---")
+    st.markdown("**Government Identification**")
+    c6, c7 = st.columns(2)
+    with c6: id_type = st.selectbox("ID Type", ID_TYPES)
+    with c7: id_number = st.text_input("ID Number")
+
+    st.markdown("---")
+    st.markdown("**Financial Profile**")
+    c8, c9 = st.columns(2)
+    with c8: employment_status = st.selectbox("Employment Status", EMPLOYMENT_STATUSES)
+    with c9: annual_income = st.selectbox("Annual Income", INCOME_RANGES)
+
+    st.markdown("---")
+    st.markdown("**Login Credentials**")
+    c10, c11 = st.columns(2)
+    with c10: uname = st.text_input("Username")
+    with c11: pw = st.text_input("Password", type="password")
+
+    if st.button("Register Customer", use_container_width=True):
+        if not all([fn, ln, email, phone, nationality, address, city, state, zip_code, country, id_number, uname, pw]):
+            st.error("All fields are required.")
         else:
             try:
                 cid = bank.id_generator.generate_customer_id()
-                c = Customer(cid, fn, ln, email, phone); bank.add_customer(c)
-                auth.register(uname, pw, Role.CUSTOMER, cid); save()
-                _success(f"\u2705 <strong>{fn} {ln}</strong> registered as <code>{cid}</code><br>Login: <code>{uname}</code>")
-            except ValueError as e: _error(e)
+                c = Customer(
+                    cid, fn, ln, email, phone,
+                    dob.isoformat(), nationality,
+                    address, city, state, zip_code, country,
+                    id_type, id_number,
+                    employment_status, annual_income,
+                )
+                bank.add_customer(c)
+                auth.register(uname, pw, Role.CUSTOMER, cid)
+                save()
+                _success(f"\u2705 <strong>{fn} {ln}</strong> registered as <code>{cid}</code> &mdash; Login: <code>{uname}</code>")
+            except ValueError as e:
+                _error(e)
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -859,24 +922,129 @@ def issue_card_page():
 
 def all_customers_page():
     """
-    Render the admin read-only view of all registered customers.
+    Render the admin view of all registered customers with removal support.
 
     Each customer is shown in a collapsible expander with their contact
-    details and a list of linked accounts including type and current balance.
+    details, linked accounts, and a Remove Customer button.  Removal is
+    blocked if the customer has any remaining balance or outstanding loans.
     """
-    _section("All Customers", "View registered customer profiles.")
+    _section("All Customers", "View and manage registered customer profiles.")
     bank = st.session_state.bank
+    auth = st.session_state.auth
     customers = bank.get_all_customers()
     if not customers: _info("No customers registered yet."); return
     for c in customers:
         with st.expander(f"\U0001F464  {c.full_name}  \u2022  {c.customer_id}"):
-            c1, c2 = st.columns(2)
-            c1.write(f"**Email:** {c.email}"); c1.write(f"**Phone:** {c.phone}")
+            c1, c2, c3 = st.columns(3)
+            c1.write(f"**Email:** {c.email}")
+            c1.write(f"**Phone:** {c.phone}")
+            c1.write(f"**Date of Birth:** {getattr(c, '_date_of_birth', '') or '—'}")
+            c1.write(f"**Nationality:** {getattr(c, '_nationality', '') or '—'}")
+            c2.write(f"**Address:** {getattr(c, '_address', '') or '—'}")
+            c2.write(f"**City:** {getattr(c, '_city', '') or '—'}, {getattr(c, '_state', '') or '—'}")
+            c2.write(f"**ZIP:** {getattr(c, '_zip_code', '') or '—'}")
+            c2.write(f"**Country:** {getattr(c, '_country', '') or '—'}")
+            c3.write(f"**ID:** {getattr(c, '_id_type', '') or '—'} — {getattr(c, '_id_number', '') or '—'}")
+            c3.write(f"**Employment:** {getattr(c, '_employment_status', '') or '—'}")
+            c3.write(f"**Income:** {getattr(c, '_annual_income', '') or '—'}")
             accs = [bank.find_account(a) for a in c.account_numbers if bank.find_account(a)]
-            c2.write(f"**Accounts:** {len(accs)}")
+            c3.write(f"**Accounts:** {len(accs)}")
             for a in accs:
                 t = "Savings" if isinstance(a, SavingsAccount) else "Checking"
-                c2.write(f"` {a.account_number} `  {t}  \u2014  ${a.balance:,.2f}")
+                c3.write(f"` {a.account_number} `  {t}  \u2014  ${a.balance:,.2f}")
+
+            st.markdown("---")
+            confirm_key = f"confirm_remove_{c.customer_id}"
+            if st.session_state.get(confirm_key):
+                st.warning(f"Are you sure you want to permanently remove **{c.full_name}**? This cannot be undone.")
+                col1, col2 = st.columns(2)
+                if col1.button("Yes, remove", key=f"yes_{c.customer_id}", use_container_width=True):
+                    try:
+                        bank.offboard_customer(c.customer_id)
+                        auth.remove_user_by_customer_id(c.customer_id)
+                        save()
+                        st.success(f"{c.full_name} has been removed.")
+                        st.session_state[confirm_key] = False
+                        st.rerun()
+                    except (ValueError, KeyError) as e:
+                        _error(e)
+                        st.session_state[confirm_key] = False
+                if col2.button("Cancel", key=f"cancel_{c.customer_id}", use_container_width=True):
+                    st.session_state[confirm_key] = False
+                    st.rerun()
+            else:
+                if st.button(f"\U0001F5D1\uFE0F  Remove Customer", key=f"rm_{c.customer_id}", use_container_width=True):
+                    st.session_state[confirm_key] = True
+                    st.rerun()
+
+
+def review_deposits_page():
+    """
+    Render the admin page for reviewing flagged deposit transactions.
+
+    Deposits >= $5,000 or that pushed a customer's daily total over $10,000
+    are held as PENDING.  The admin can approve (credit the account) or
+    reject (discard without crediting) each one.
+    """
+    _section("Review Deposits", "Approve or reject flagged deposit transactions.")
+    from src.utils.enums import TransactionStatus
+    bank = st.session_state.bank
+    am = st.session_state.acct_manager
+    tm = st.session_state.tx_manager
+
+    pending = [
+        tx for tx in tm.get_all_transactions()
+        if tx.transaction_type.value == "deposit" and tx.status == TransactionStatus.PENDING
+    ]
+    processed = [
+        tx for tx in tm.get_all_transactions()
+        if tx.transaction_type.value == "deposit" and tx.status != TransactionStatus.PENDING
+        and tx.status != TransactionStatus.COMPLETED or (
+            tx.transaction_type.value == "deposit"
+            and tx.status == TransactionStatus.FAILED
+        )
+    ]
+
+    if not pending:
+        _info("No deposits are currently pending review.")
+    else:
+        st.markdown(f"**{len(pending)} deposit(s) awaiting review:**")
+        for tx in pending:
+            acct = bank.find_account(tx.target_account)
+            customer = bank.find_customer(acct.customer_id) if acct else None
+            name = customer.full_name if customer else "Unknown"
+            with st.expander(f"💰  {tx.transaction_id}  —  ${tx.amount:,.2f}  —  {name}  ({tx.target_account})"):
+                st.write(f"**Amount:** ${tx.amount:,.2f}")
+                st.write(f"**Account:** {tx.target_account}")
+                st.write(f"**Customer:** {name}")
+                st.write(f"**Description:** {tx.description}")
+                st.write(f"**Submitted:** {tx.timestamp:%Y-%m-%d %H:%M:%S}")
+                c1, c2 = st.columns(2)
+                if c1.button("✅ Approve", key=f"appr_{tx.transaction_id}", use_container_width=True):
+                    try:
+                        am.approve_pending_deposit(tx.transaction_id); save()
+                        st.success(f"Deposit {tx.transaction_id} approved. ${tx.amount:,.2f} credited.")
+                        st.rerun()
+                    except Exception as e: _error(e)
+                if c2.button("❌ Reject", key=f"rej_{tx.transaction_id}", use_container_width=True):
+                    try:
+                        am.reject_pending_deposit(tx.transaction_id); save()
+                        st.warning(f"Deposit {tx.transaction_id} rejected.")
+                        st.rerun()
+                    except Exception as e: _error(e)
+
+    rejected = [
+        tx for tx in tm.get_all_transactions()
+        if tx.transaction_type.value == "deposit" and tx.status == TransactionStatus.FAILED
+    ]
+    if rejected:
+        st.markdown("---")
+        st.markdown(f"**{len(rejected)} rejected deposit(s):**")
+        for tx in rejected:
+            acct = bank.find_account(tx.target_account)
+            customer = bank.find_customer(acct.customer_id) if acct else None
+            name = customer.full_name if customer else "Unknown"
+            st.markdown(f"- `{tx.transaction_id}` &nbsp; ${tx.amount:,.2f} &nbsp; {name} &nbsp; <span style='color:#e74c3c'>Rejected</span>", unsafe_allow_html=True)
 
 
 # ====================================================================== #
@@ -897,7 +1065,7 @@ def main():
     if st.session_state.role == Role.CUSTOMER:
         routes = {"\U0001F3E0  Dashboard": customer_dashboard, "\U0001F4B0  Deposit": deposit_page, "\U0001F4B8  Withdraw": withdraw_page, "\U0001F504  Transfer": transfer_page, "\U0001F4DC  Transactions": transaction_history_page, "\U0001F4CB  Loans": loans_page, "\U0001F4B3  Cards": cards_page}
     else:
-        routes = {"\U0001F3E0  Dashboard": admin_dashboard, "\U0001F464  Register Customer": register_customer_page, "\U0001F3E6  Create Account": create_account_page, "\U0001F4CB  Manage Loans": manage_loans_page, "\U0001F4B3  Issue Card": issue_card_page, "\U0001F465  All Customers": all_customers_page}
+        routes = {"\U0001F3E0  Dashboard": admin_dashboard, "\U0001F464  Register Customer": register_customer_page, "\U0001F3E6  Create Account": create_account_page, "\U0001F4CB  Manage Loans": manage_loans_page, "\U0001F4B0  Review Deposits": review_deposits_page, "\U0001F4B3  Issue Card": issue_card_page, "\U0001F465  All Customers": all_customers_page}
     fn = routes.get(page)
     if fn: fn()
 

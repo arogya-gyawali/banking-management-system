@@ -88,6 +88,21 @@ class AuthService:
         self._sessions[token] = username
         return token
 
+    def remove_user_by_customer_id(self, customer_id: str) -> None:
+        """
+        Delete the login account linked to a customer.
+
+        Raises:
+            KeyError: If no user is linked to that customer.
+        """
+        username = next(
+            (u for u, user in self._users.items() if user.linked_customer_id == customer_id),
+            None,
+        )
+        if username is None:
+            raise KeyError(f"No login account found for customer {customer_id}.")
+        del self._users[username]
+
     def logout(self, token: str) -> None:
         """
         Invalidate a session token.

@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from src.utils.enums import TransactionType
+from src.utils.enums import AccountType, TransactionType
 
 
 class Account(ABC):
@@ -97,6 +97,11 @@ class Account(ABC):
     def transaction_ids(self) -> List[str]:
         """Return a copy of the transaction ID list."""
         return list(self._transaction_ids)
+
+    @property
+    @abstractmethod
+    def account_type(self) -> AccountType:
+        """Return the AccountType enum value for this account."""
 
     # ------------------------------------------------------------------ #
     #  Public helpers
@@ -290,6 +295,11 @@ class SavingsAccount(Account):
         """Return the minimum balance requirement."""
         return self._minimum_balance
 
+    @property
+    def account_type(self) -> AccountType:
+        """Return SAVINGS account type."""
+        return AccountType.SAVINGS
+
     # ------------------------------------------------------------------ #
     #  Overrides
     # ------------------------------------------------------------------ #
@@ -428,6 +438,11 @@ class CurrentAccount(Account):
     def overdraft_limit(self) -> Decimal:
         """Return the overdraft limit."""
         return self._overdraft_limit
+
+    @property
+    def account_type(self) -> AccountType:
+        """Return CHECKING account type."""
+        return AccountType.CHECKING
 
     # ------------------------------------------------------------------ #
     #  Overrides
